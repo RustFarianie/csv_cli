@@ -1,51 +1,63 @@
-use csv::{self, ReaderBuilder};
-use std::error::Error;
-use std::process;
+use structopt::StructOpt;
 
-fn csv(
-    row_start_number: usize,
-    row_end_number: usize,
-    record_start_number: usize,
-    record_end_number: usize,
-    seprator: char,
-    path: &str,
-) -> Result<(), Box<dyn Error>> {
-    let seprator = seprator as u8;
-    let mut rdr = ReaderBuilder::new().delimiter(seprator).from_path(path)?;
+mod cli;
+mod csv_fn;
 
-    for (i, result) in rdr.records().enumerate() {
-        if record_start_number <= i && record_end_number >= i {
-            let record = result?;
+use cli::*;
+use csv_fn::*;
 
-            println!("Row {}", i);
-            for elem in row_start_number..row_end_number {
-                println!("{:?}", &record[elem]);
-            }
-        }
-    }
-
-    Ok(())
-}
+use crate::cli::Read;
 
 fn main() {
-    let row_start_number = 0;
-    let row_end_number = 5;
+    match Cli::from_args().cmd {
+		//  cargo run write --separator '|' --record "Country" "Name" "Town" --path "test" 
+        Command::Write(Write {
+            separator,
+            record,
+            path
+        }) => {
 
-    let record_start_number = 3;
-    let record_end_number = 5;
+            if let Err(err) = csv_write(separator, record, path) {
+                panic!("error running example: {}", err);
+            }
 
-    let seprator = '|';
-    let path = "input[2].csv";
+        }
+        // cargo run read --row-start-number 0 --row-end-number 10 --record-start-number 0 --record-end-number 0 --seprator  '|' --column "room_code" --path "input[2].csv"
+        Command::Read(Read {
+            row_start_number,
+            record_start_number,
+            row_end_number,
+            record_end_number,
+            seprator,
+            path,
+            column,
+            query,
+        }) => {
+            if let Err(err) = csv_read(
+                row_start_number,
+                row_end_number,
+                record_start_number,
+                record_end_number,
+                seprator,
+                path.as_str(),
+                column.as_str(),
+                query,
+            ) {
+                panic!("error running example: {}", err);
+            }
+        },
+		// cargo run add --separator '|' --string-record "Test" "Test2" "Test3" --path "test"
+		Command::Add(Add{
+			separator,
+			string_record,
+			path,
+		}) => {
+			let mut record = Vec::new();
+			record.push(string_record);
 
-    if let Err(err) = csv(
-        row_start_number,
-        row_end_number,
-        record_start_number,
-        record_end_number,
-        seprator,
-        path,
-    ) {
-        println!("error running example: {}", err);
-        process::exit(1);
-    }
+			if let Err(err) = csv_add_record(separator, record, path) {
+				panic!("error running example: {}", err);
+			}
+		}
+    };
 }
